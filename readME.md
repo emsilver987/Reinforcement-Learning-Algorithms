@@ -145,4 +145,4 @@ Both algorithms balance exploration, stability, and convergence speed differentl
 
 ## Author
 
-This project was completed as part of Purdue's Artificial Intelligence course (CS450/CSCI 4870).
+This project was completed as part of Purdue's Artificial Intelligence course (CSCI 4870).
