@@ -160,6 +160,7 @@ def LRIUpdate(reward_prob, learning_rate, p):
     """
     iterations = 1  # Start from 1 (first iteration/trial)
     max_iterations = 200000  # Safety upper bound, shouldn't activate in normal cases
+    # I promise not to crash your computer, professor
     
     while True:
         # Choose action based on probability distribution
@@ -238,7 +239,7 @@ def PLAUpdate(reward_prob, learning_rate, p):
             reward_count[action_index] += 1
         Q[action_index] = reward_count[action_index] / chosen_count[action_index]
         
-        # Find best action (argmax Q) - use max with key to avoid bias toward first equal value
+        # Find best action, use max with key to avoid bias toward first equal value
         best_action = max(range(len(Q)), key=lambda i: Q[i])
         
         # Update probabilities toward best action
@@ -248,7 +249,7 @@ def PLAUpdate(reward_prob, learning_rate, p):
             else:
                 p[i] = p[i] * (1 - learning_rate)
         
-        # Normalize probabilities to prevent floating-point drift
+        # Normalize probabilities
         total = sum(p)
         if total > 0:
             for i in range(len(p)):
