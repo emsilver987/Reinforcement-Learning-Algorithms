@@ -104,14 +104,18 @@ def LRIUpdate(reward_prob, learning, arr):
     for k in range(100):
         randForAction = random.random()
         cumulativeArr = getCumulativeArr(arr)
+        actionIndex = 0  # default to first action
         for i in range(len(cumulativeArr)):
             if cumulativeArr[i] > randForAction:
-                if i == 0: actionIndex = 0
-                else: actionIndex = i-1 
+                if i == 0: 
+                    actionIndex = 0
+                else: 
+                    actionIndex = i-1
+                break
         probOfChosenAction = random.random()
         binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
         if binary == 1:
-            for i in range(arr):
+            for i in range(len(arr)):
                 if i == actionIndex:
                     arr[i] = arr[i] + learning * (1 - arr[i])
                 else: 
@@ -126,9 +130,11 @@ def LRIUpdate(reward_prob, learning, arr):
 
         convergeIndex = checkConvergence(reward_prob, arr)
         if convergeIndex > -1:
-            for z in range(rewardCount):
+            totalRewardCount = 0
+            totalChosenCount = 0
+            for z in range(len(rewardCount)):
                 totalRewardCount += rewardCount[z]
-            for x in range(chosenCount):
+            for x in range(len(chosenCount)):
                 totalChosenCount += chosenCount[x]
             percentAccurate = totalRewardCount / totalChosenCount
 
@@ -149,10 +155,14 @@ def PLAUpdate(reward_prob, learning, arr):
     for k in range(100):
         randForAction = random.random()
         cumulativeArr = getCumulativeArr(arr)
-        for k in range(len(cumulativeArr)):
+        actionIndex = 0  # default to first action
+        for l in range(len(cumulativeArr)):
             if cumulativeArr[l] > randForAction:
-                if k == 0: actionIndex = 0
-                else: actionIndex = k-1 
+                if l == 0: 
+                    actionIndex = 0
+                else: 
+                    actionIndex = l-1
+                break
         probOfChosenAction = random.random()
         binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
 
@@ -172,9 +182,11 @@ def PLAUpdate(reward_prob, learning, arr):
         
         convergeIndex = checkConvergence(reward_prob, arr)
         if convergeIndex > -1:
-            for z in range(rewardCount):
+            totalRewardCount = 0
+            totalChosenCount = 0
+            for z in range(len(rewardCount)):
                 totalRewardCount += rewardCount[z]
-            for x in range(chosenCount):
+            for x in range(len(chosenCount)):
                 totalChosenCount += chosenCount[x]
             percentAccurate = totalRewardCount / totalChosenCount
 
