@@ -60,6 +60,87 @@
 # When any one of our probailites (initally 0.1) reach 0.9 and IS the is the best action
 # If the converegence is any index expect 7 (which is highest at 0.72), it converged, but inaccurately
 
+import random 
 
+def main():
+    reward_prob = [0.19, 0.2, 0.21, 0.59, 0.6, 0.61, 0.72, 0.41, 0.39, 0.4]
+    learning_rates = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5]
+    seeds = [14, 12, 102, 412, 101]
+    metrics = []
+
+    setUp(reward_prob, learning_rates, seeds)
+
+    # graphing
+    
+
+def setUp(reward_prob, learning_rates, seeds):
+    # rotate through seeds
+    for i in range(len(seeds)):
+        # Initalization, seed and arr
+        random.seed(seeds[i])
+        LRI = []
+        PLA = []
+        for j in range(10):
+            LRI.append(0.1)
+            PLA.append(0.1)
+
+        # Iterations 
+        for k in range(100):
+            # Determine correct action
+            randForAction = random.random()
+            LRIUpdate(reward_prob, learning_rates, LRI, randForAction)
+            PLAUpdate(reward_prob, learning_rates, PLA, randForAction)
+
+def LRIUpdate(reward_prob, learning_rates, arr, randForAction):
+    cumulativeArr = getCumulativeArr(arr)
+    for i in range(len(cumulativeArr)):
+        if cumulativeArr[i] > randForAction:
+            if i == 0: actionIndex = 0
+            else: actionIndex = i-1 
+    probOfChosenAction = random.random()
+    binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
+    if binary 
+
+def PLAUpdate(reward_prob, learning_rates, arr, randForAction):
+    cumulativeArr = getCumulativeArr(arr)
+    for i in range(len(cumulativeArr)):
+        if cumulativeArr[i] > randForAction:
+            if i == 0: actionIndex = 0
+            else: actionIndex = i-1 
+    probOfChosenAction = random.random()
+    binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
+
+
+
+def RLIEval():
+    
+# IF action i is chosen and rewarded, pi := pi + (learning rate)(1-pi)
+# and others pk := pk(1-(learning rate))
+
+def PLAEval():
+    
+# PLA 
+# moves deciison boundry that reduces the error for a specific point, guarntees convergence is data is linearly separable
+# updates accumulate
+# Estimate reward probability, identify action currently believed to be best, update probilities toward that action
+# PLA update rule: pj := pj + (learning_rate)(1-pj)
+# Then pk := pk - (learning rate)(pk) k cannot equal j
+# This is essentially pushing our action believed "up" and all other ones down
+
+
+def getCumulativeArr(arr):
+    # funciton that provides a cumulative Arr
+    curr = 0
+    returnArr = []
+    for i in range(len(arr)):
+        curr += arr[i]
+        returnArr.append(curr)
+    return returnArr
+    
+
+        
+
+if __name__ == '__main__':
+    main()
 
 
