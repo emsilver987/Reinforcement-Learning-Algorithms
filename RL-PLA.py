@@ -77,16 +77,14 @@ def main():
 def setUp(reward_prob, learning_rates, seeds):
     # rotate through seeds
     for i in range(len(seeds)):
-        # Initalization, seed and arr
+        # Initalization, seed
         random.seed(seeds[i])
-        LRI, PLA = [], []
         metricsLRI, metricsPLA = [], []
-        for j in range(10):
-            LRI.append(0.1)
-            PLA.append(0.1)
 
-        # Iterations 
+        # Iterations - reinitialize arrays for each learning rate
         for k in range(len(learning_rates)):
+            LRI = [0.1] * 10
+            PLA = [0.1] * 10
             metricsLRI.append(LRIUpdate(reward_prob, learning_rates[k], LRI))
             metricsPLA.append(PLAUpdate(reward_prob, learning_rates[k], PLA))
 
@@ -94,23 +92,14 @@ def setUp(reward_prob, learning_rates, seeds):
         print(metricsPLA)
 
 def LRIUpdate(reward_prob, learning, arr):
-    # Initalize
-    rewardCount = []
-    chosenCount = []
-    for i in range(len(arr)):
-        rewardCount.append(0)
-        chosenCount.append(0)
-
-    for k in range(100):
+    k = 0
+    while True:
         randForAction = random.random()
         cumulativeArr = getCumulativeArr(arr)
         actionIndex = 0  # default to first action
         for i in range(len(cumulativeArr)):
             if cumulativeArr[i] > randForAction:
-                if i == 0: 
-                    actionIndex = 0
-                else: 
-                    actionIndex = i-1
+                actionIndex = i
                 break
         probOfChosenAction = random.random()
         binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
@@ -122,46 +111,27 @@ def LRIUpdate(reward_prob, learning, arr):
                     arr[i] = (1 - learning) * arr[i]
         # do nothing if binary is 0, it only learns from rewards
 
-        
-        # update RLI chosen and reward and Q
-        chosenCount[actionIndex] = chosenCount[actionIndex] + 1
-        if binary == 1:
-            rewardCount[actionIndex] = rewardCount[actionIndex] + 1
-
         convergeIndex = checkConvergence(reward_prob, arr)
         if convergeIndex > -1:
-            totalRewardCount = 0
-            totalChosenCount = 0
-            for z in range(len(rewardCount)):
-                totalRewardCount += rewardCount[z]
-            for x in range(len(chosenCount)):
-                totalChosenCount += chosenCount[x]
-            percentAccurate = totalRewardCount / totalChosenCount
-
-            if convergeIndex == 7: # this is highest probaility
-                return [True, percentAccurate, k]
-            return [False, percentAccurate, k]
+            # Accuracy: did it converge to index 6 (best action with 0.72)?
+            isAccurate = (convergeIndex == 6)
+            return [isAccurate, k]
+        k += 1
 
 def PLAUpdate(reward_prob, learning, arr):
-    # initalize empty reward count and chosen count
-    rewardCount = []
-    chosenCount = []
-    Q = []
-    for i in range(len(arr)):
-        rewardCount.append(0)
-        chosenCount.append(0)
-        Q.append(-1) # negative one so we don't get a false max
+    # initialize reward count, chosen count, and Q estimates
+    rewardCount = [0] * len(arr)
+    chosenCount = [0] * len(arr)
+    Q = [0.0] * len(arr)
 
-    for k in range(100):
+    k = 0
+    while True:
         randForAction = random.random()
         cumulativeArr = getCumulativeArr(arr)
         actionIndex = 0  # default to first action
         for l in range(len(cumulativeArr)):
             if cumulativeArr[l] > randForAction:
-                if l == 0: 
-                    actionIndex = 0
-                else: 
-                    actionIndex = l-1
+                actionIndex = l
                 break
         probOfChosenAction = random.random()
         binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
@@ -172,27 +142,21 @@ def PLAUpdate(reward_prob, learning, arr):
             rewardCount[actionIndex] = rewardCount[actionIndex] + 1
         Q[actionIndex] = rewardCount[actionIndex] / chosenCount[actionIndex]
 
-        # update values
+        # update values - find best action j = argmax(Q)
         maxQ = max(Q)
+        j = Q.index(maxQ)  # argmax(Q)
         for f in range(len(arr)):
-            if maxQ == arr[f]:
-                arr[f] = arr[f] + (learning * (1-arr[f]))
+            if f == j:
+                arr[f] = arr[f] + (learning * (1 - arr[f]))
             else:
                 arr[f] = (1 - learning) * arr[f]
         
         convergeIndex = checkConvergence(reward_prob, arr)
         if convergeIndex > -1:
-            totalRewardCount = 0
-            totalChosenCount = 0
-            for z in range(len(rewardCount)):
-                totalRewardCount += rewardCount[z]
-            for x in range(len(chosenCount)):
-                totalChosenCount += chosenCount[x]
-            percentAccurate = totalRewardCount / totalChosenCount
-
-            if convergeIndex == 7: # this is highest probaility
-                return [True, percentAccurate, k]
-            return [False, percentAccurate, k]
+            # Accuracy: did it converge to index 6 (best action with 0.72)?
+            isAccurate = (convergeIndex == 6)
+            return [isAccurate, k]
+        k += 1
 
 
 def checkConvergence(reward_prob, arr):
