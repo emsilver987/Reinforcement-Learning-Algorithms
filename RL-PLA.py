@@ -85,47 +85,66 @@ def setUp(reward_prob, learning_rates, seeds):
             PLA.append(0.1)
 
         # Iterations 
-        for k in range(100):
-            # Determine correct action
-            randForAction = random.random()
-            LRIUpdate(reward_prob, learning_rates, LRI, randForAction)
-            PLAUpdate(reward_prob, learning_rates, PLA, randForAction)
+        for k in range(len(learning_rates)):
+            LRIUpdate(reward_prob, learning_rates[k], LRI)
+            PLAUpdate(reward_prob, learning_rates[k], PLA)
 
-def LRIUpdate(reward_prob, learning_rates, arr, randForAction):
-    cumulativeArr = getCumulativeArr(arr)
-    for i in range(len(cumulativeArr)):
-        if cumulativeArr[i] > randForAction:
-            if i == 0: actionIndex = 0
-            else: actionIndex = i-1 
-    probOfChosenAction = random.random()
-    binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
-    if binary 
+def LRIUpdate(reward_prob, learning, arr):
+    for k in range(100):
+        randForAction = random.random()
+        cumulativeArr = getCumulativeArr(arr)
+        for i in range(len(cumulativeArr)):
+            if cumulativeArr[i] > randForAction:
+                if i == 0: actionIndex = 0
+                else: actionIndex = i-1 
+        probOfChosenAction = random.random()
+        binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
+        if binary == 1:
+            for i in range(arr):
+                if i == actionIndex:
+                    arr[i] = arr[i] + learning * (1 - arr[i])
+                else: 
+                    arr[i] = (1 - learning) * arr[i]
+        # do nothing if binary is 0, it only learns from rewards
 
-def PLAUpdate(reward_prob, learning_rates, arr, randForAction):
-    cumulativeArr = getCumulativeArr(arr)
-    for i in range(len(cumulativeArr)):
-        if cumulativeArr[i] > randForAction:
-            if i == 0: actionIndex = 0
-            else: actionIndex = i-1 
-    probOfChosenAction = random.random()
-    binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
+def PLAUpdate(reward_prob, learning, arr):
+    # initalize empty reward count and chosen count
+    rewardCount = []
+    chosenCount = []
+    Q = []
+    for i in range(len(arr)):
+        rewardCount.append(0)
+        chosenCount.append(0)
+        Q.append(-1) # negative one so we don't get a false max
+    for k in range(100):
+        randForAction = random.random()
+        cumulativeArr = getCumulativeArr(arr)
+        for i in range(len(cumulativeArr)):
+            if cumulativeArr[i] > randForAction:
+                if i == 0: actionIndex = 0
+                else: actionIndex = i-1 
+        probOfChosenAction = random.random()
+        binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
+
+        # update PLA chosen and reward and Q
+        chosenCount[actionIndex] += 1
+        if binary == 1:
+            rewardCount[actionIndex] += 1
+        Q[i] = rewardCount / chosenCount[i]
+
+        # update values
+        j = max(Q)
+        for i in range(len(arr)):
+            if j == arr[i]:
+                arr[i] = arr[i] + (learning * (1-arr[j]))
+            else:
+                arr[i] = (1 - learning) * arr[i]
 
 
+# need convergence check
 
-def RLIEval():
+def checkConvergence:
     
-# IF action i is chosen and rewarded, pi := pi + (learning rate)(1-pi)
-# and others pk := pk(1-(learning rate))
-
-def PLAEval():
-    
-# PLA 
-# moves deciison boundry that reduces the error for a specific point, guarntees convergence is data is linearly separable
-# updates accumulate
-# Estimate reward probability, identify action currently believed to be best, update probilities toward that action
-# PLA update rule: pj := pj + (learning_rate)(1-pj)
-# Then pk := pk - (learning rate)(pk) k cannot equal j
-# This is essentially pushing our action believed "up" and all other ones down
 
 
 def getCumulativeArr(arr):
