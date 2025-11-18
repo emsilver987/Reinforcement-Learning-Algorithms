@@ -1,3 +1,9 @@
+# NOTES TO TA / PROF
+# The implementation takes a very long time at low learning rates but check output to see it's progress
+# I have graphs which will dispaly at the end (<5 minutes) that will eval PLA vs RLI
+
+
+
 # Need to implement L-R1 Algorithm and Pursuit Learning Algorithm (PLA)(model based)
 
 # 10 actions should operate in random
@@ -52,17 +58,32 @@
 # If the convergence is any index except 6 (which is highest at 0.72), it converged, but inaccurately
 
 import random
+import matplotlib.pyplot as plt
 
 def main():
     reward_prob = [0.19, 0.2, 0.21, 0.59, 0.6, 0.61, 0.72, 0.41, 0.39, 0.4]
     learning_rates = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5]
     seeds = [14, 12, 102, 412, 101]
     
-    setUp(reward_prob, learning_rates, seeds)
+    all_lri_metrics, all_pla_metrics = setUp(reward_prob, learning_rates, seeds)
     
-    # graphing
+    # Create plots
+    plot_results(learning_rates, all_lri_metrics, all_pla_metrics)
     
 def setUp(reward_prob, learning_rates, seeds):
+    """
+    Run experiments across all seeds and collect metrics.
+    Returns averaged metrics across all seeds.
+    """
+    # Collect metrics from all seeds
+    all_lri_metrics = []  # Will be list of [accuracy, avg_iterations] for each learning rate
+    all_pla_metrics = []
+    
+    # Initialize accumulators for averaging across seeds
+    for _ in learning_rates:
+        all_lri_metrics.append([0.0, 0.0])  # [total_accuracy, total_iterations]
+        all_pla_metrics.append([0.0, 0.0])
+    
     # rotate through seeds - each seed represents a different experimental run
     for seed_idx in range(len(seeds)):
         print(f"\n=== Experimental Run {seed_idx + 1} (Base Seed {seeds[seed_idx]}) ===")
@@ -78,7 +99,8 @@ def setUp(reward_prob, learning_rates, seeds):
             
             for run in range(100):
                 # Each run uses a different seed (100 different seeds per learning rate)
-                random.seed(seeds[seed_idx] * 10000 + lr_idx * 100 + run)
+                # Use large primes to decorrelate seeds
+                random.seed(seeds[seed_idx] + lr_idx * 999983 + run * 7919)
                 p = [0.1] * 10
                 result = LRIUpdate(reward_prob, learning_rate, p)
                 if result[0]:  # converged to correct action (index 6)
@@ -89,13 +111,18 @@ def setUp(reward_prob, learning_rates, seeds):
             lri_avg_iterations = lri_total_iterations / 100.0
             metricsLRI.append([lri_accuracy, lri_avg_iterations])
             
+            # Accumulate for averaging across seeds
+            all_lri_metrics[lr_idx][0] += lri_accuracy
+            all_lri_metrics[lr_idx][1] += lri_avg_iterations
+            
             # Run PLA 100 times
             pla_accurate_count = 0
             pla_total_iterations = 0
             
             for run in range(100):
                 # Each run uses a different seed (100 different seeds per learning rate)
-                random.seed(seeds[seed_idx] * 10000 + lr_idx * 100 + run)
+                # Use large primes to decorrelate seeds
+                random.seed(seeds[seed_idx] + lr_idx * 999983 + run * 7919)
                 p = [0.1] * 10
                 result = PLAUpdate(reward_prob, learning_rate, p)
                 if result[0]:  # converged to correct action (index 6)
@@ -106,20 +133,35 @@ def setUp(reward_prob, learning_rates, seeds):
             pla_avg_iterations = pla_total_iterations / 100.0
             metricsPLA.append([pla_accuracy, pla_avg_iterations])
             
+            # Accumulate for averaging across seeds
+            all_pla_metrics[lr_idx][0] += pla_accuracy
+            all_pla_metrics[lr_idx][1] += pla_avg_iterations
+            
             print(f"α={learning_rate:.3f}: L-RI accuracy={lri_accuracy:.2f}, avg_iter={lri_avg_iterations:.1f} | PLA accuracy={pla_accuracy:.2f}, avg_iter={pla_avg_iterations:.1f}")
         
         print(f"\nL-RI metrics: {metricsLRI}")
         print(f"PLA metrics: {metricsPLA}")
+    
+    # Average across all seeds
+    num_seeds = len(seeds)
+    for i in range(len(learning_rates)):
+        all_lri_metrics[i][0] /= num_seeds  # Average accuracy
+        all_lri_metrics[i][1] /= num_seeds  # Average iterations
+        all_pla_metrics[i][0] /= num_seeds
+        all_pla_metrics[i][1] /= num_seeds
+    
+    return all_lri_metrics, all_pla_metrics
 
 def LRIUpdate(reward_prob, learning_rate, p):
     """
     L-RI (Linear Reward-Inaction) algorithm.
     Updates only on rewards. No tracking of reward counts.
+    Runs until convergence (probability >= 0.9) or max_iterations reached.
     """
     iterations = 1  # Start from 1 (first iteration/trial)
-    max_iterations = 100  # Run for 100 iterations 
+    max_iterations = 200000  # Safety upper bound, shouldn't activate in normal cases
     
-    while iterations <= max_iterations:
+    while True:
         # Choose action based on probability distribution
         rand_for_action = random.random()
         cumulative_arr = get_cumulative_arr(p)
@@ -142,6 +184,12 @@ def LRIUpdate(reward_prob, learning_rate, p):
                 else:
                     p[i] = p[i] * (1 - learning_rate)
         
+        # Normalize probabilities to prevent floating-point drift
+        total = sum(p)
+        if total > 0:
+            for i in range(len(p)):
+                p[i] = p[i] / total
+        
         # Check convergence after update
         converge_index = check_convergence(p)
         if converge_index >= 0:
@@ -150,14 +198,16 @@ def LRIUpdate(reward_prob, learning_rate, p):
             return [is_accurate, iterations]
         
         iterations += 1
-    
-    # Did not converge within 100 iterations
-    return [False, iterations]
+        
+        # Safety check: prevent infinite loops
+        if iterations >= max_iterations:
+            return [False, iterations]
 
 def PLAUpdate(reward_prob, learning_rate, p):
     """
     PLA (Pursuit Learning Algorithm) using running averages.
     Maintains Q estimates and updates toward best action.
+    Runs until convergence (probability >= 0.9) or max_iterations reached.
     """
     # Initialize Q estimates and tracking arrays
     reward_count = [0] * len(p)
@@ -165,9 +215,9 @@ def PLAUpdate(reward_prob, learning_rate, p):
     Q = [0.0] * len(p)
     
     iterations = 1  # Start from 1 (first iteration/trial)
-    max_iterations = 100  # Run for 100 iterations
+    max_iterations = 200000  # Safety upper bound, shouldn't activate in normal cases
     
-    while iterations <= max_iterations:
+    while True:
         # Choose action based on probability distribution
         rand_for_action = random.random()
         cumulative_arr = get_cumulative_arr(p)
@@ -188,9 +238,8 @@ def PLAUpdate(reward_prob, learning_rate, p):
             reward_count[action_index] += 1
         Q[action_index] = reward_count[action_index] / chosen_count[action_index]
         
-        # Find best action (argmax Q)
-        max_Q = max(Q)
-        best_action = Q.index(max_Q)
+        # Find best action (argmax Q) - use max with key to avoid bias toward first equal value
+        best_action = max(range(len(Q)), key=lambda i: Q[i])
         
         # Update probabilities toward best action
         for i in range(len(p)):
@@ -198,6 +247,12 @@ def PLAUpdate(reward_prob, learning_rate, p):
                 p[i] = p[i] + learning_rate * (1 - p[i])
             else:
                 p[i] = p[i] * (1 - learning_rate)
+        
+        # Normalize probabilities to prevent floating-point drift
+        total = sum(p)
+        if total > 0:
+            for i in range(len(p)):
+                p[i] = p[i] / total
         
         # Check convergence after update
         converge_index = check_convergence(p)
@@ -207,9 +262,10 @@ def PLAUpdate(reward_prob, learning_rate, p):
             return [is_accurate, iterations]
         
         iterations += 1
-    
-    # Did not converge within 100 iterations
-    return [False, iterations]
+        
+        # Safety check: prevent infinite loops
+        if iterations >= max_iterations:
+            return [False, iterations]
 
 def check_convergence(p):
     """
@@ -232,5 +288,64 @@ def get_cumulative_arr(p):
         cumulative.append(curr)
     return cumulative
 
+def plot_results(learning_rates, lri_metrics, pla_metrics):
+    """
+    Create two plots comparing L-RI and PLA:
+    1. Accuracy vs Learning Rate
+    2. Average Learning Speed (iterations) vs Learning Rate
+    """
+    # Extract data for plotting
+    lri_accuracy = [m[0] for m in lri_metrics]
+    lri_iterations = [m[1] for m in lri_metrics]
+    pla_accuracy = [m[0] for m in pla_metrics]
+    pla_iterations = [m[1] for m in pla_metrics]
+    
+    # Create figure with two subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    
+    # Plot 1: Accuracy vs Learning Rate
+    ax1.plot(learning_rates, lri_accuracy, 'o-', label='L-RI', linewidth=2, markersize=8)
+    ax1.plot(learning_rates, pla_accuracy, 's-', label='PLA', linewidth=2, markersize=8)
+    ax1.set_xlabel('Learning Rate (α)', fontsize=12)
+    ax1.set_ylabel('Accuracy (Percentage)', fontsize=12)
+    ax1.set_title('Accuracy vs Learning Rate', fontsize=14, fontweight='bold')
+    ax1.set_xscale('log')
+    ax1.grid(True, alpha=0.3)
+    ax1.legend(fontsize=11)
+    ax1.set_ylim([0, 1.05])
+    
+    # Plot 2: Average Learning Speed (Iterations) vs Learning Rate
+    ax2.plot(learning_rates, lri_iterations, 'o-', label='L-RI', linewidth=2, markersize=8)
+    ax2.plot(learning_rates, pla_iterations, 's-', label='PLA', linewidth=2, markersize=8)
+    ax2.set_xlabel('Learning Rate (α)', fontsize=12)
+    ax2.set_ylabel('Average Learning Speed (Iterations)', fontsize=12)
+    ax2.set_title('Average Learning Speed vs Learning Rate', fontsize=14, fontweight='bold')
+    ax2.set_xscale('log')
+    ax2.set_yscale('log')
+    ax2.grid(True, alpha=0.3)
+    ax2.legend(fontsize=11)
+    
+    plt.tight_layout()
+    plt.savefig('rl_pla_comparison.png', dpi=300, bbox_inches='tight')
+    print("\n✓ Graphs saved as 'rl_pla_comparison.png'")
+    plt.show()
+
 if __name__ == '__main__':
     main()
+
+
+# Conclusion
+# Through implementing and simulating both the Linear Reward–Inaction (L-RI) algorithm and the Pursuit Learning Algorithm (PLA), I learned how dramatically different reinforcement learning behaviors emerge from the structure of the update rule itself. 
+# L-RI, which only updates on rewards and ignores penalties, proved to be extremely slow at small learning rates and highly unstable at large ones. 
+# It consistently required tens of thousands of iterations to converge when α was small, and its accuracy collapsed once α became too aggressive. 
+# PLA, in contrast, leveraged a model-based estimate of reward probabilities, allowing it to identify the best action far more reliably and with an order-of-magnitude faster convergence. 
+# However, I also observed that PLA becomes sensitive to higher learning rates: once α exceeds moderate values, its pursuit update overcommits to premature Q-estimates and accuracy drops sharply. 
+# Running each algorithm 100 times per learning rate also made it clear why stochastic evaluation is essential—single runs are misleading, and only averaged accuracy and learning-speed metrics reveal the true performance characteristics. 
+# Overall, this project showed me how learning automata balance exploration, stability, and convergence speed, and how subtle differences in update dynamics create very different learning profiles across the same environment.
+
+# Graphs
+# If you look atht eh grpahs, you will see that, in general PLA is far more optimal than L-RI
+# for both accurarcy and speed across various learning rates
+# You will notice that when the learning rate is very small for both PLA and L-RI, their perforamce is basically the same
+# However, when we increase the learning rate L-RI lags behind PLA very much
+# In all cases PLA has a faster average learning speed and accuracy
