@@ -60,7 +60,8 @@
 # When any one of our probailites (initally 0.1) reach 0.9 and IS the is the best action
 # If the converegence is any index expect 7 (which is highest at 0.72), it converged, but inaccurately
 
-import random 
+import random
+import re 
 
 def main():
     reward_prob = [0.19, 0.2, 0.21, 0.59, 0.6, 0.61, 0.72, 0.41, 0.39, 0.4]
@@ -78,18 +79,28 @@ def setUp(reward_prob, learning_rates, seeds):
     for i in range(len(seeds)):
         # Initalization, seed and arr
         random.seed(seeds[i])
-        LRI = []
-        PLA = []
+        LRI, PLA = [], []
+        metricsLRI, metricsPLA = [], []
         for j in range(10):
             LRI.append(0.1)
             PLA.append(0.1)
 
         # Iterations 
         for k in range(len(learning_rates)):
-            LRIUpdate(reward_prob, learning_rates[k], LRI)
-            PLAUpdate(reward_prob, learning_rates[k], PLA)
+            metricsLRI.append(LRIUpdate(reward_prob, learning_rates[k], LRI))
+            metricsPLA.append(PLAUpdate(reward_prob, learning_rates[k], PLA))
+
+        print(metricsLRI)
+        print(metricsPLA)
 
 def LRIUpdate(reward_prob, learning, arr):
+    # Initalize
+    rewardCount = []
+    chosenCount = []
+    for i in range(len(arr)):
+        rewardCount.append(0)
+        chosenCount.append(0)
+
     for k in range(100):
         randForAction = random.random()
         cumulativeArr = getCumulativeArr(arr)
@@ -107,6 +118,24 @@ def LRIUpdate(reward_prob, learning, arr):
                     arr[i] = (1 - learning) * arr[i]
         # do nothing if binary is 0, it only learns from rewards
 
+        
+        # update RLI chosen and reward and Q
+        chosenCount[actionIndex] = chosenCount[actionIndex] + 1
+        if binary == 1:
+            rewardCount[actionIndex] = rewardCount[actionIndex] + 1
+
+        convergeIndex = checkConvergence(reward_prob, arr)
+        if convergeIndex > -1:
+            for z in range(rewardCount):
+                totalRewardCount += rewardCount[z]
+            for x in range(chosenCount):
+                totalChosenCount += chosenCount[x]
+            percentAccurate = totalRewardCount / totalChosenCount
+
+            if convergeIndex == 7: # this is highest probaility
+                return [True, percentAccurate, k]
+            return [False, percentAccurate, k]
+
 def PLAUpdate(reward_prob, learning, arr):
     # initalize empty reward count and chosen count
     rewardCount = []
@@ -116,35 +145,51 @@ def PLAUpdate(reward_prob, learning, arr):
         rewardCount.append(0)
         chosenCount.append(0)
         Q.append(-1) # negative one so we don't get a false max
+
     for k in range(100):
         randForAction = random.random()
         cumulativeArr = getCumulativeArr(arr)
-        for i in range(len(cumulativeArr)):
-            if cumulativeArr[i] > randForAction:
-                if i == 0: actionIndex = 0
-                else: actionIndex = i-1 
+        for k in range(len(cumulativeArr)):
+            if cumulativeArr[l] > randForAction:
+                if k == 0: actionIndex = 0
+                else: actionIndex = k-1 
         probOfChosenAction = random.random()
         binary = 1 if probOfChosenAction < reward_prob[actionIndex] else 0
 
         # update PLA chosen and reward and Q
-        chosenCount[actionIndex] += 1
+        chosenCount[actionIndex] = chosenCount[actionIndex] + 1
         if binary == 1:
-            rewardCount[actionIndex] += 1
-        Q[i] = rewardCount / chosenCount[i]
+            rewardCount[actionIndex] = rewardCount[actionIndex] + 1
+        Q[actionIndex] = rewardCount[actionIndex] / chosenCount[actionIndex]
 
         # update values
-        j = max(Q)
-        for i in range(len(arr)):
-            if j == arr[i]:
-                arr[i] = arr[i] + (learning * (1-arr[j]))
+        maxQ = max(Q)
+        for f in range(len(arr)):
+            if maxQ == arr[f]:
+                arr[f] = arr[f] + (learning * (1-arr[f]))
             else:
-                arr[i] = (1 - learning) * arr[i]
+                arr[f] = (1 - learning) * arr[f]
+        
+        convergeIndex = checkConvergence(reward_prob, arr)
+        if convergeIndex > -1:
+            for z in range(rewardCount):
+                totalRewardCount += rewardCount[z]
+            for x in range(chosenCount):
+                totalChosenCount += chosenCount[x]
+            percentAccurate = totalRewardCount / totalChosenCount
+
+            if convergeIndex == 7: # this is highest probaility
+                return [True, percentAccurate, k]
+            return [False, percentAccurate, k]
 
 
-# need convergence check
+def checkConvergence(reward_prob, arr):
+    for i in range(len(arr)):
+        if arr[i] >= 0.9:
+            return i
+    return -1
 
-def checkConvergence:
-    
+
 
 
 def getCumulativeArr(arr):
